@@ -2,6 +2,7 @@ import {
   LineChart, Line, XAxis, YAxis, Tooltip, Legend,
   CartesianGrid, ResponsiveContainer,
 } from 'recharts'
+import useIsMobile from '../useIsMobile'
 
 const TEAM_COLORS = {
   red_bull: '#3671C6', ferrari: '#E8002D', mercedes: '#27F4D2',
@@ -30,6 +31,7 @@ export function seriesColor(id, index) {
 export default function MultiLineChart({
   blob, yLabel, yReversed = false, connectNulls = false, height = 480,
 }) {
+  const isMobile = useIsMobile()
   if (!blob?.series?.length) {
     return <p className="text-gray-400 py-12 text-center">No data for this selection.</p>
   }
@@ -39,14 +41,18 @@ export default function MultiLineChart({
     return row
   })
   return (
-    <ResponsiveContainer width="100%" height={height}>
-      <LineChart data={rows} margin={{ top: 8, right: 24, bottom: 8, left: 8 }}>
+    <ResponsiveContainer width="100%" height={isMobile ? Math.min(height, 340) : height}>
+      <LineChart data={rows}
+                 margin={isMobile
+                   ? { top: 8, right: 8, bottom: 8, left: -18 }
+                   : { top: 8, right: 24, bottom: 8, left: 8 }}>
         <CartesianGrid stroke="#2e2e3d" strokeDasharray="3 3" />
-        <XAxis dataKey="x" stroke="#9ca3af" tick={{ fontSize: 11 }} />
+        <XAxis dataKey="x" stroke="#9ca3af" tick={{ fontSize: isMobile ? 10 : 11 }}
+               minTickGap={isMobile ? 32 : 16} interval="preserveStartEnd" />
         <YAxis
-          stroke="#9ca3af" tick={{ fontSize: 11 }} reversed={yReversed}
+          stroke="#9ca3af" tick={{ fontSize: isMobile ? 10 : 11 }} reversed={yReversed}
           allowDecimals={false}
-          label={yLabel ? {
+          label={yLabel && !isMobile ? {
             value: yLabel, angle: -90, position: 'insideLeft', fill: '#9ca3af',
           } : undefined}
         />
@@ -55,7 +61,7 @@ export default function MultiLineChart({
           labelStyle={{ color: '#e5e7eb' }}
           itemSorter={(item) => -item.value}
         />
-        <Legend wrapperStyle={{ fontSize: 12 }} />
+        <Legend wrapperStyle={{ fontSize: isMobile ? 10 : 12 }} />
         {blob.series.map((s, i) => (
           <Line
             key={s.id ?? s.label} type="monotone" dataKey={s.label}

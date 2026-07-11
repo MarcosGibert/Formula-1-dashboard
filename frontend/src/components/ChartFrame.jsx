@@ -1,11 +1,11 @@
 /** Shared wrapper: title, description, filter bar, loading & error states. */
 export default function ChartFrame({ title, description, filters, query, children }) {
   return (
-    <div className="p-6 max-w-6xl">
-      <h1 className="text-2xl font-bold mb-1">{title}</h1>
+    <div className="p-4 md:p-6 max-w-6xl">
+      <h1 className="text-xl md:text-2xl font-bold mb-1">{title}</h1>
       {description && <p className="text-gray-400 text-sm mb-4">{description}</p>}
       {filters && (
-        <div className="flex flex-wrap gap-3 items-end bg-panel rounded-lg p-4 mb-6">
+        <div className="flex flex-wrap gap-3 items-end bg-panel rounded-lg p-3 md:p-4 mb-4 md:mb-6">
           {filters}
         </div>
       )}
