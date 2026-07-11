@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { NavLink, Navigate, Route, Routes } from 'react-router-dom'
 import * as C from './pages/charts'
 
@@ -14,18 +15,55 @@ const CHARTS = [
   { path: 'top-teams', name: 'Top teams by season', el: <C.TopTeams /> },
 ]
 
-export default function App() {
+function Logo() {
   return (
-    <div className="flex min-h-screen">
-      <aside className="w-60 shrink-0 bg-panel border-r border-gray-800 p-4">
-        <div className="mb-6">
-          <span className="text-f1red font-black text-xl italic">F1</span>
-          <span className="font-bold text-lg ml-2">Analytics</span>
+    <div>
+      <span className="text-f1red font-black text-xl italic">F1</span>
+      <span className="font-bold text-lg ml-2">Analytics</span>
+    </div>
+  )
+}
+
+export default function App() {
+  const [navOpen, setNavOpen] = useState(false)
+  return (
+    <div className="md:flex min-h-screen">
+      {/* Mobile top bar */}
+      <header className="md:hidden sticky top-0 z-50 flex items-center justify-between
+                         bg-panel border-b border-gray-800 px-4 py-3">
+        <Logo />
+        <button type="button" aria-label="Toggle menu"
+                onClick={() => setNavOpen(!navOpen)}
+                className="p-2 rounded border border-gray-700 text-gray-200">
+          {/* hamburger / close */}
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none"
+               stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+            {navOpen
+              ? <path d="M6 6l12 12M18 6L6 18" />
+              : <path d="M4 7h16M4 12h16M4 17h16" />}
+          </svg>
+        </button>
+      </header>
+
+      {/* Overlay behind the mobile drawer */}
+      {navOpen && (
+        <div className="md:hidden fixed inset-0 z-30 bg-black/60"
+             onClick={() => setNavOpen(false)} />
+      )}
+
+      {/* Sidebar: drawer on mobile, static column on md+ */}
+      <aside className={`fixed md:static inset-y-0 left-0 z-40 w-60 shrink-0
+                         bg-panel border-r border-gray-800 p-4 overflow-y-auto
+                         transform transition-transform duration-200 md:transform-none
+                         ${navOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}`}>
+        <div className="mb-6 hidden md:block">
+          <Logo />
           <p className="text-xs text-gray-500 mt-1">Historical stats · 1950–today</p>
         </div>
-        <nav className="flex flex-col gap-1">
+        <nav className="flex flex-col gap-1 mt-14 md:mt-0">
           {CHARTS.map((c) => (
             <NavLink key={c.path} to={`/${c.path}`}
+              onClick={() => setNavOpen(false)}
               className={({ isActive }) =>
                 `px-3 py-2 rounded text-sm ${
                   isActive
@@ -41,6 +79,7 @@ export default function App() {
           Unofficial — not associated with Formula 1.
         </p>
       </aside>
+
       <main className="flex-1 min-w-0">
         <Routes>
           <Route path="/" element={<Navigate to={`/${CHARTS[0].path}`} replace />} />
