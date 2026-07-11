@@ -108,7 +108,12 @@ async def _progression(client: JolpicaClient, season: int, kind: str) -> dict:
                     ent = row["Driver"]
                     eid = ent["driverId"]
                     label = f"{ent['givenName']} {ent['familyName']}"
-                    extra = {"nationality": ent.get("nationality", "Unknown")}
+                    ctors = row.get("Constructors", [])
+                    extra = {
+                        "nationality": ent.get("nationality", "Unknown"),
+                        # most recent team (drivers can switch mid-season)
+                        "teamId": ctors[-1]["constructorId"] if ctors else None,
+                    }
                 else:
                     ent = row["Constructor"]
                     eid = ent["constructorId"]
@@ -117,6 +122,8 @@ async def _progression(client: JolpicaClient, season: int, kind: str) -> dict:
                 rec = entrants.setdefault(
                     eid, {"id": eid, "label": label, **extra, "points": {}}
                 )
+                if extra.get("teamId"):  # keep latest team for mid-season swaps
+                    rec["teamId"] = extra["teamId"]
                 rec["points"][rnd] = float(row["points"])
 
         series = []
@@ -127,8 +134,9 @@ async def _progression(client: JolpicaClient, season: int, kind: str) -> dict:
                 last = rec["points"].get(rnd, last)
                 data.append(last)
             s = {"id": rec["id"], "label": rec["label"], "data": data}
-            if "nationality" in rec:
-                s["nationality"] = rec["nationality"]
+            for k in ("nationality", "teamId"):
+                if rec.get(k) is not None:
+                    s[k] = rec[k]
             series.append(s)
         series.sort(key=lambda s: s["data"][-1] if s["data"] else 0, reverse=True)
         return {
@@ -290,9 +298,14 @@ async def circuit_averages(client, constructor_id: str, start: int, end: int):
             c["races"] += 1
             c["totalPoints"] += row["points"]
 
+    # Only show circuits that are on the *current* season's calendar.
+    current_circuits = {
+        r["circuitId"] for r in await season_schedule(client, current_year())
+    }
     rows = [
         {**c, "avgPoints": round(c["totalPoints"] / c["races"], 2)}
         for c in circuits.values()
+        if c["circuitId"] in current_circuits
     ]
     rows.sort(key=lambda r: r["avgPoints"], reverse=True)
     return {"constructorId": constructor_id, "rows": rows}
@@ -309,10 +322,20 @@ CAREER_SCAN_START = 2000
 async def current_drivers_careers(client):
     """Chart 9 — season-end points of every current driver, whole career."""
     async def fetch():
-        drivers = await client.get_all("current/drivers", ["DriverTable", "Drivers"])
+        # "Current grid" = drivers who took part in the most recent race,
+        # which excludes early-season substitutes and one-off entries.
+        races = await client.get_all("current/last/results", ["RaceTable", "Races"])
+        results = races[0].get("Results", []) if races else []
         wanted = {
-            d["driverId"]: f"{d['givenName']} {d['familyName']}" for d in drivers
+            r["Driver"]["driverId"]:
+                f"{r['Driver']['givenName']} {r['Driver']['familyName']}"
+            for r in results
         }
+        if not wanted:  # fallback: everyone entered this season
+            drivers = await client.get_all("current/drivers", ["DriverTable", "Drivers"])
+            wanted = {
+                d["driverId"]: f"{d['givenName']} {d['familyName']}" for d in drivers
+            }
         per_driver: dict[str, dict[int, float]] = {did: {} for did in wanted}
         seasons = list(range(CAREER_SCAN_START, current_year() + 1))
         for year in seasons:
