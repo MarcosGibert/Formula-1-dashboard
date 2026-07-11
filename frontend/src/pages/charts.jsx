@@ -3,6 +3,7 @@ import {
   BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, ResponsiveContainer,
 } from 'recharts'
 import { useApi, CURRENT_YEAR } from '../api'
+import useIsMobile from '../useIsMobile'
 import ChartFrame from '../components/ChartFrame'
 import MultiLineChart from '../components/MultiLineChart'
 import {
@@ -164,11 +165,13 @@ export function GapToChampion() {
 
 /* 8 — Average points per circuit for a team */
 export function CircuitAverages() {
+  const isMobile = useIsMobile()
   const [team, setTeam] = useState('red_bull')
   const [start, setStart] = useState(CURRENT_YEAR - 4)
   const [end, setEnd] = useState(CURRENT_YEAR)
   const q = useApi(`/api/constructor/${team}/circuit-averages?start=${start}&end=${end}`)
   const rows = q.data?.rows ?? []
+  const axisWidth = isMobile ? 95 : 140
   return (
     <ChartFrame title="Average points per circuit"
       description="Team's average combined points per race weekend, by circuit. Only circuits on the current season's calendar are shown."
@@ -178,11 +181,11 @@ export function CircuitAverages() {
       </>} query={q}>
       <ResponsiveContainer width="100%" height={Math.max(320, rows.length * 28)}>
         <BarChart data={rows} layout="vertical"
-                  margin={{ top: 8, right: 24, bottom: 8, left: 140 }}>
+                  margin={{ top: 8, right: isMobile ? 8 : 24, bottom: 8, left: axisWidth }}>
           <CartesianGrid stroke="#2e2e3d" strokeDasharray="3 3" />
           <XAxis type="number" stroke="#9ca3af" tick={{ fontSize: 11 }} />
           <YAxis type="category" dataKey="circuitName" stroke="#9ca3af"
-                 tick={{ fontSize: 11 }} width={140} />
+                 tick={{ fontSize: isMobile ? 9 : 11 }} width={axisWidth} />
           <Tooltip contentStyle={{ background: '#1f1f2b', border: '1px solid #2e2e3d' }}
                    labelStyle={{ color: '#e5e7eb' }} />
           <Bar dataKey="avgPoints" fill="#e10600" name="Avg points / weekend" />
