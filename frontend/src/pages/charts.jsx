@@ -9,20 +9,43 @@ import {
   SeasonSelect, RangeSelect, TeamSelect, MultiSeasonSelect,
 } from '../components/controls'
 
-/* 1 — Cumulative points per driver */
+/** Split a blob into top/bottom halves by final standing (series come
+ *  pre-sorted by final points from the backend). */
+function splitBlob(blob) {
+  if (!blob?.series) return [null, null]
+  const mid = Math.ceil(blob.series.length / 2)
+  return [
+    { ...blob, series: blob.series.slice(0, mid) },
+    { ...blob, series: blob.series.slice(mid) },
+  ]
+}
+
+function SplitCharts({ blob, yLabel }) {
+  const [top, bottom] = splitBlob(blob)
+  return (
+    <>
+      <h2 className="text-sm font-semibold text-gray-400 uppercase mb-2">Top half</h2>
+      <MultiLineChart blob={top} yLabel={yLabel} height={380} />
+      <h2 className="text-sm font-semibold text-gray-400 uppercase mt-8 mb-2">Bottom half</h2>
+      <MultiLineChart blob={bottom} yLabel={yLabel} height={380} />
+    </>
+  )
+}
+
+/* 1 — Cumulative points per driver (team colors, split top/bottom) */
 export function DriverProgression() {
   const [season, setSeason] = useState(CURRENT_YEAR)
   const q = useApi(`/api/season/${season}/driver-progression`)
   return (
     <ChartFrame title="Driver points progression"
-      description="Cumulative championship points per driver, round by round."
+      description="Cumulative championship points per driver, round by round. Lines are colored by the driver's team; teammates share a color."
       filters={<SeasonSelect value={season} onChange={setSeason} />} query={q}>
-      <MultiLineChart blob={q.data} yLabel="Points" />
+      <SplitCharts blob={q.data} yLabel="Points" />
     </ChartFrame>
   )
 }
 
-/* 2 — Cumulative points per team */
+/* 2 — Cumulative points per team (split top/bottom) */
 export function ConstructorProgression() {
   const [season, setSeason] = useState(CURRENT_YEAR)
   const q = useApi(`/api/season/${season}/constructor-progression`)
@@ -30,20 +53,41 @@ export function ConstructorProgression() {
     <ChartFrame title="Team points progression"
       description="Cumulative constructor championship points, round by round."
       filters={<SeasonSelect value={season} onChange={setSeason} />} query={q}>
-      <MultiLineChart blob={q.data} yLabel="Points" />
+      <SplitCharts blob={q.data} yLabel="Points" />
     </ChartFrame>
   )
 }
 
-/* 3 — Cumulative points per country */
+/* 3 — Cumulative points per country, with country filter */
 export function CountryProgression() {
   const [season, setSeason] = useState(CURRENT_YEAR)
+  const [hidden, setHidden] = useState([]) // empty = show all
   const q = useApi(`/api/season/${season}/country-progression`)
+  const all = q.data?.series ?? []
+  const toggle = (id) =>
+    setHidden(hidden.includes(id) ? hidden.filter((h) => h !== id) : [...hidden, id])
+  const blob = q.data
+    ? { ...q.data, series: all.filter((s) => !hidden.includes(s.id)) }
+    : q.data
   return (
     <ChartFrame title="Points by country"
-      description="Cumulative points grouped by driver nationality."
-      filters={<SeasonSelect value={season} onChange={setSeason} />} query={q}>
-      <MultiLineChart blob={q.data} yLabel="Points" />
+      description="Cumulative points grouped by driver nationality. Click a country to show/hide it."
+      filters={<>
+        <SeasonSelect value={season} onChange={(y) => { setSeason(y); setHidden([]) }} />
+        <div className="flex flex-wrap gap-1 max-w-2xl">
+          {all.map((s) => (
+            <button key={s.id} type="button" onClick={() => toggle(s.id)}
+              className={`px-2 py-1 rounded text-xs border ${
+                hidden.includes(s.id)
+                  ? 'border-gray-700 text-gray-600'
+                  : 'bg-f1red border-f1red text-white'
+              }`}>
+              {s.label}
+            </button>
+          ))}
+        </div>
+      </>} query={q}>
+      <MultiLineChart blob={blob} yLabel="Points" />
     </ChartFrame>
   )
 }
@@ -127,7 +171,7 @@ export function CircuitAverages() {
   const rows = q.data?.rows ?? []
   return (
     <ChartFrame title="Average points per circuit"
-      description="Team's average combined points per race weekend, by circuit."
+      description="Team's average combined points per race weekend, by circuit. Only circuits on the current season's calendar are shown."
       filters={<>
         <TeamSelect value={team} onChange={setTeam} />
         <RangeSelect start={start} end={end} onStart={setStart} onEnd={setEnd} />
@@ -153,7 +197,7 @@ export function DriverCareers() {
   const q = useApi('/api/drivers/current/career-points')
   return (
     <ChartFrame title="Current drivers — career points by season"
-      description="Season-end championship points for every driver on the current grid, across their whole careers. Heavily cached server-side (this is the most expensive view)."
+      description="Season-end championship points across their whole careers, for drivers who took part in the most recent race (excludes substitutes). Heavily cached server-side."
       query={q}>
       <MultiLineChart blob={q.data} yLabel="Season-end points" connectNulls />
     </ChartFrame>
