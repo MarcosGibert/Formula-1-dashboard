@@ -59,7 +59,7 @@ export default function MultiLineChart({
         {blob.series.map((s, i) => (
           <Line
             key={s.id ?? s.label} type="monotone" dataKey={s.label}
-            stroke={seriesColor(s.id, i)} dot={false} strokeWidth={2}
+            stroke={seriesColor(s.teamId ?? s.id, i)} dot={false} strokeWidth={2}
             connectNulls={connectNulls}
           />
         ))}
